@@ -22,9 +22,9 @@ spec:
       containers:
       - name: cmdb-convert
         # 초기 이미지 버전 세팅
-        image: 061051247564.dkr.ecr.ap-northeast-2.amazonaws.com/cmdb-convert:0.25.31
+        image: 061051247564.dkr.ecr.ap-northeast-2.amazonaws.com/cmdb-convert:0.25.32
         env:
         - name: app/create-datetime
-          value: "20260210083056"
+          value: "20260217083056"
         ports:
         - containerPort: 8080

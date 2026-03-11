@@ -48,9 +48,12 @@ jobs:
       env:
         IMAGE_URI: ${{ steps.build-image.outputs.image }}
       run: |
-        sed -i "s|061051247564.dkr.ecr.ap-northeast-2.amazonaws.com/cmdb-convert:VERSION_PLACEHOLDER|$IMAGE_URI|g" k8s-manifest/prod-deployment.yaml
+        # 1. 먼저 기본 뼈대(매니페스트)를 배포합니다.
         kubectl apply -f k8s-manifest/prod-deployment.yaml
         
+        # 2. sed 문자열 치환 대신, EKS 명령어로 컨테이너 이미지를 확실하게 교체합니다.
+        kubectl set image deployment/cmdb-convert cmdb-convert=$IMAGE_URI -n ${{ env.K8S_NAMESPACE }}
+
     - name: Verify Deployment
       run: |
         kubectl rollout status deployment/cmdb-convert -n ${{ env.K8S_NAMESPACE }}

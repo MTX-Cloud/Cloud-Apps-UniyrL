@@ -9,7 +9,7 @@ metadata:
   name: cmdb-convert
   namespace: prod
 spec:
-  replicas: 15
+  replicas: 1
   selector:
     matchLabels:
       app: cmdb-convert
@@ -18,13 +18,8 @@ spec:
       labels:
         app: cmdb-convert
     spec:
-      serviceAccountName: cmdb-convert-sa
       containers:
       - name: cmdb-convert
-        # 초기 이미지 버전 세팅
-        image: 061051247564.dkr.ecr.ap-northeast-2.amazonaws.com/cmdb-convert:0.25.36
-        env:
-        - name: app/create-datetime
-          value: "20260307083056"
+        image: nginx:latest
         ports:
-        - containerPort: 8080
+        - containerPort: 80

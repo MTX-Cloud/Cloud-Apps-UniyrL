@@ -1,0 +1,56 @@
+name: Prod Deployment CI/CD
+
+on:
+  push:
+    branches: [ "main" ] # Prod 배포 기준
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: cmdb-convert
+  EKS_CLUSTER_NAME: test-cluster
+  K8S_NAMESPACE: prod
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production # GitHub Environment를 통한 승인(Approval) 절차 적용
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        cd ddo-cmdb-convert
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Update kubeconfig
+      run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+    - name: Deploy to Amazon EKS
+      env:
+        IMAGE_URI: ${{ steps.build-image.outputs.image }}
+      run: |
+        sed -i "s|AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-2.amazonaws.com/ddo-cmdb-convert:VERSION_PLACEHOLDER|$IMAGE_URI|g" k8s-manifest/prod-deployment.yaml
+        kubectl apply -f k8s-manifest/prod-deployment.yaml
+        
+    - name: Verify Deployment
+      run: |
+        kubectl rollout status deployment/ddo-cmdb-convert -n ${{ env.K8S_NAMESPACE }}
